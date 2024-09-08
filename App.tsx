@@ -6,9 +6,11 @@ import {
   View,
   Text,
   Alert,
-  Platform,
-  PermissionsAndroid,
+  TouchableOpacity,
+  FlatList,
+  Dimensions,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -17,16 +19,22 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import 'react-native-gesture-handler';
 import RNFS from 'react-native-fs';
 import { FFmpegKit, FFmpegKitConfig, FFmpegSession } from 'ffmpeg-kit-react-native';
+import Video from 'react-native-video';
+
+const { width } = Dimensions.get('window'); // Get the device width
+const screenWidth = Dimensions.get('window').width;
 
 type RootStackParamList = {
   Home: undefined;
   Video: { url: string };
   Download: { url: string };
+  View: undefined;
 };
 
 type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 type VideoScreenProps = NativeStackScreenProps<RootStackParamList, 'Video'>;
 type DownloadScreenProps = NativeStackScreenProps<RootStackParamList, 'Download'>;
+type ViewVideosProps = NativeStackScreenProps<RootStackParamList, 'View'>;
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -41,31 +49,77 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     navigation.navigate('Download', { url });
   };
 
+
+  const handleViewVideos = () => {
+    navigation.navigate('View'); // Navigate to the ViewVideos screen
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, padding: 16 }}>
+    <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
       <TextInput
-          style={{
-            height: 40,
-            borderColor: 'gray',
-            borderWidth: 1,
-            marginBottom: 12,
-            color: 'black',        // Set the text color to black
-            fontWeight: 'bold',    // Make the text bold
-          }}
+        style={{
+          height: 40,
+          width: '80%', // Adjust the width as needed
+          borderColor: 'gray',
+          borderWidth: 1,
+          marginBottom: 12,
+          color: 'black',
+          fontWeight: 'bold',
+          textAlign: 'center', // Center the text inside the input
+        }}
         placeholder="Enter IP Address"
         placeholderTextColor="black"
         onChangeText={text => setUrl(text)}
         value={url}
       />
-      <Button
-        title="Get Video"
-        onPress={handleGetVideo}
-      />
-      <View style={{ marginVertical: 8 }} />
-      <Button
-        title="Download Menu"
-        onPress={handleDownloadMenu}
-      />
+      <View style={{ width: '80%', marginBottom: 8 }}>
+        {/* "Get Video" button with same size */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#007BFF',
+            paddingVertical: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 8,
+            height: 50, // Set consistent height
+          }}
+          onPress={handleGetVideo}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Get Video</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ width: '80%' , marginBottom: 8}}>
+        {/* "Download Menu" button with same size */}
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#007BFF',
+            paddingVertical: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 8,
+            height: 50, // Set consistent height
+          }}
+          onPress={handleDownloadMenu}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Download Menu</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ width: '80%', marginBottom: 8 }}>
+        <TouchableOpacity
+          style={{
+            backgroundColor: '#007BFF',
+            paddingVertical: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 8,
+            height: 50,
+          }}
+          onPress={handleViewVideos}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>View Videos</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -108,8 +162,10 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
   const [frameRate, setFrameRate] = useState('');
   const [ffmpegLog, setFfmpegLog] = useState('');
   const [downloading, setDownloading] = useState(false);
-  const [streamInfo, setStreamInfo] = useState({ averageFps: 0, resolution: '',duration: '', bitrate: ''});
+  const [streamInfo, setStreamInfo] = useState({ averageFps: 0, resolution: '',realFPS: 0});
   const ffmpegSessionRef = useRef<FFmpegSession | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);  // Reference to the ScrollView
+
 
   const generateSequentialFileName = async (folderPath: string, baseName: string, extension: string) => {
     let fileName = `${baseName}.${extension}`;
@@ -151,11 +207,11 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
 
           // Step 3: Calculate the average
           const sum = numericFpsValues.reduce((acc, fps) => acc + fps, 0);
-          const averageFps = Math.ceil((numericFpsValues.length > 0 ? sum / numericFpsValues.length : 0)/2);
+          const realFPS = parseFloat((numericFpsValues.length > 0 ? sum / numericFpsValues.length : 0).toFixed(1));
+          const averageFps = Math.ceil(realFPS/2);
           setFrameRate(averageFps.toString());
-          console.log('Average FPS (excluding zeroes):', averageFps);
-          setStreamInfo({ averageFps, resolution, duration, bitrate });
-          Alert.alert('Stream Info', `FPS: ${averageFps}\nResolution: ${resolution}\nDuration: ${duration}\nBitrate: ${bitrate}`);
+          setStreamInfo({ averageFps, resolution, realFPS });
+          Alert.alert('Stream Info', `FPS: ${averageFps}\nResolution: ${resolution}\n realFPS: ${realFPS}\nBitrate: ${bitrate}`);
         } else {
           Alert.alert('Error', 'Failed to retrieve stream info.');
         }
@@ -182,7 +238,6 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
     try {
       setDownloading(true);
       setFfmpegLog('');
-
       const downloadFolder = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
       if (!(await RNFS.exists(downloadFolder))) {
         await RNFS.mkdir(downloadFolder);
@@ -195,14 +250,14 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
       const session = await FFmpegKit.executeAsync(ffmpegCommand, async (session) => {
         const returnCode = await session.getReturnCode();
         if (returnCode.isValueSuccess()) {
-          Alert.alert('Success', `Video downloaded successfully! File saved as ${outputFilePath}`);
+          console.log('Success', `Video downloaded successfully! File saved as ${outputFilePath}`);
         } else {
           const failStackTrace = await session.getFailStackTrace();
-          console.error('FFmpeg failed with return code:', returnCode);
+          console.log('FFmpeg failed with return code:', returnCode);
           if (failStackTrace) {
-            console.error('FFmpeg failure stacktrace:', failStackTrace);
+            console.log('FFmpeg failure stacktrace:', failStackTrace);
           }
-          Alert.alert('Error', 'Failed to download video.');
+          console.log('Error', 'Failed to download video.');
         }
         setDownloading(false);
       });
@@ -233,13 +288,22 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
     <SafeAreaView style={{ flex: 1, padding: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TextInput
-          style={{ height: 40, borderColor: 'gray', borderWidth: 1, flex: 1, color: 'black', fontWeight: 'bold' }}
-          placeholder="Enter Frame Rate"
+          style={{ height: 40,
+              borderColor: 'gray',
+              borderWidth: 1,
+              flex: 1,
+              color: 'black',
+              fontWeight: 'bold',
+              textAlign: 'center',
+              width: width / 3,
+              marginRight: 8
+            }}
+          placeholder="Frame Rate"
           placeholderTextColor="black"
           onChangeText={text => setFrameRate(text)}
           value={frameRate}
         />
-        <Text style={{ marginLeft: 8, color: 'black', fontWeight: 'bold' }}>URL: {url}stream</Text>
+        <Text style={{ marginLeft: 8, color: 'black', fontWeight: 'bold' ,width: width / 2}}>URL: {url}stream</Text>
       </View>
       <View style={{ marginTop: 20 }}>
         <Button title="Get Info" onPress={handleGetInfo} />
@@ -252,18 +316,105 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
           <Button title="Stop Download" onPress={handleStop} />
         </View>
       )}
-      <ScrollView style={{ marginTop: 20, maxHeight: 200, borderWidth: 1, borderColor: 'gray', padding: 10 }}>
+      <ScrollView
+        ref={scrollViewRef} // Attach the reference here
+        style={{ marginTop: 20, maxHeight: 200, borderWidth: 1, borderColor: 'gray', padding: 10 }}
+      >
         <Text style={{ color: 'black' }}>FFmpeg Log:</Text>
         <Text style={{ color: 'black' }}>{ffmpegLog}</Text>
       </ScrollView>
       <View style={{ marginTop: 20 }}>
-        <Text style={{ color: 'black' }}>FPS: {streamInfo.averageFps}</Text>
+        <Text style={{ color: 'black' }}>Real FPS: {streamInfo.realFPS}</Text>
+        <Text style={{ color: 'black' }}>Estimated FPS: {streamInfo.averageFps}</Text>
         <Text style={{ color: 'black' }}>Resolution: {streamInfo.resolution}</Text>
-        <Text style={{ color: 'black' }}>Duration: {streamInfo.duration}</Text>
-        <Text style={{ color: 'black' }}>Bitrate: {streamInfo.bitrate}</Text>
       </View>
     </SafeAreaView>
   );};
+
+  // ------------------------------------------------------------------- Video view
+
+  const ViewVideosScreen = ({ route }: ViewVideosProps) => {
+
+    const [videos, setVideos] = useState<string[]>([]);
+    const [fallbackVideo, setFallbackVideo] = useState<string | null>(null); // For fallback video player
+
+  
+    useEffect(() => {
+      const fetchVideos = async () => {
+        const folderPath = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
+        
+        try {
+          const files = await RNFS.readDir(folderPath); // Read the directory
+          const videoFiles = files
+            .filter(file => file.isFile() && file.name.endsWith('.mp4')) // Filter .mp4 files
+            .map(file => file.path);
+          setVideos(videoFiles);
+        } catch (error) {
+          console.error('Error reading directory:', error);
+          Alert.alert('Error', 'Failed to load videos.');
+        }
+      };
+  
+      fetchVideos();
+    }, []);
+  
+    const handleOpenVideo = async (videoPath: string) => {
+      try {
+        const supported = await Linking.canOpenURL(`file://${videoPath}`);
+        if (supported) {
+          await Linking.openURL(`file://${videoPath}`); // Opens the video in an external player
+        } else {
+          setFallbackVideo(videoPath);
+        }
+      } catch (error) {
+        console.error('Error opening video:', error);
+        Alert.alert('Error', 'Failed to open the video.');
+      }
+    };
+  
+    return (
+      <SafeAreaView style={{ flex: 1, padding: 16 }}>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>Saved Videos</Text>
+        {videos.length === 0 ? (
+          <Text>No videos found.</Text>
+        ) : (
+        <FlatList
+          data={videos}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={{
+                padding: 16,
+                backgroundColor: '#f0f0f0',
+                borderBottomWidth: 1,
+                borderBottomColor: '#ccc',
+                marginBottom: 10,
+              }}
+              onPress={() => handleOpenVideo(item)}
+            >
+              {/* Make sure the file name is wrapped in a Text component */}
+              <Text>{item.split('/').pop()}</Text>
+            </TouchableOpacity>
+          )}
+        />
+        )}
+        {/* Fallback: Play video using react-native-video if no external player is available */}
+        {fallbackVideo && (
+            <View style={{ marginTop: 20 }}>
+              <Text style={{ marginBottom: 10 }}>Playing in fallback player:</Text>
+              <Video
+                source={{ uri: `file://${fallbackVideo}` }}
+                style={{ width: screenWidth, height: 300 }}
+                controls={true}  // Enable controls like play, pause, seek, etc.
+                onEnd={() => setFallbackVideo(null)} // Close the fallback player when the video ends
+              />
+            </View>
+          )}
+      </SafeAreaView>
+    );
+  };
+  
+
 
 
 const App = () => {
@@ -273,6 +424,7 @@ const App = () => {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Video" component={VideoScreen} />
         <Stack.Screen name="Download" component={DownloadScreen} />
+        <Stack.Screen name="View" component={ViewVideosScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
