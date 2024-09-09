@@ -25,6 +25,7 @@ import RNFS from 'react-native-fs';
 import { FFmpegKit, FFmpegKitConfig, FFmpegSession } from 'ffmpeg-kit-react-native';
 import Video from 'react-native-video';
 import { NetworkInfo } from 'react-native-network-info'; 
+import FileViewer from 'react-native-file-viewer';
 
 const { width } = Dimensions.get('window'); // Get the device width
 const screenWidth = Dimensions.get('window').width;  // Get the system theme (light or dark)
@@ -43,7 +44,7 @@ type ViewVideosProps = NativeStackScreenProps<RootStackParamList, 'View'>;
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-const HomeScreen = ({ navigation }) => {
+const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [url, setUrl] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const colorScheme = useColorScheme();  // Get the system theme (light or dark)
@@ -57,7 +58,7 @@ const HomeScreen = ({ navigation }) => {
 
   const textColor = colorScheme === 'dark' ? '#fff' : '#000';  // Text color based on theme
 
-  const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
+  const fetchWithTimeout = async (url: string, options = {}, timeout = 5000) => {
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Request timed out')), timeout)
     );
@@ -435,67 +436,105 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
 
   // ------------------------------------------------------------------- Video view
 
-  const ViewVideosScreen = ({ route }: ViewVideosProps) => {
-    const [videos, setVideos] = useState<string[]>([]);
-    const [fallbackVideo, setFallbackVideo] = useState<string | null>(null); // For fallback video player
+  // const ViewVideosScreen = ({ route }: ViewVideosProps) => {
+
+  //   const [videos, setVideos] = useState<string[]>([]);
+  //   const [fallbackVideo, setFallbackVideo] = useState<string | null>(null); // For fallback video player
+  //   const colorScheme = useColorScheme();  // Detect the current system theme
   
-    const colorScheme = useColorScheme();  // Detect the current system theme
+
+  //   // Define styles for light and dark themes
+  //   const backgroundStyle = {
+  //     flex: 1,
+  //     padding: 16,
+  //     backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',  // Dark background for dark mode, light for light mode
+  //   };
+
+  //   const textColor = {
+  //     color: colorScheme === 'dark' ? '#fff' : '#000',  // White text for dark mode, black for light mode
+  //   };
+
+  //   const videoItemStyle = {
+  //     padding: 16,
+  //     backgroundColor: colorScheme === 'dark' ? '#444' : '#f0f0f0',  // Adjust background color for each item based on theme
+  //     borderBottomWidth: 1,
+  //     borderBottomColor: colorScheme === 'dark' ? '#555' : '#ccc',  // Adjust border color for each item based on theme
+  //     marginBottom: 10,
+  //   };
+
+  //   useEffect(() => {
+  //     const fetchVideos = async () => {
+  //       const folderPath = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
+        
+  //       try {
+  //         const files = await RNFS.readDir(folderPath); // Read the directory
+  //         const videoFiles = files
+  //           .filter(file => file.isFile() && file.name.endsWith('.mp4')) // Filter .mp4 files
+  //           .map(file => file.path);
+  //         setVideos(videoFiles);
+  //       } catch (error) {
+  //         console.error('Error reading directory:', error);
+  //         Alert.alert('Error', 'Failed to load videos.');
+  //       }
+  //     };
   
-    // Define styles for light and dark themes
-    const backgroundStyle = {
-      flex: 1,
-      padding: 16,
-      backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',  // Dark background for dark mode, light for light mode
-    };
+  //     fetchVideos();
+  //   }, []);
   
-    const textColor = {
-      color: colorScheme === 'dark' ? '#fff' : '#000',  // White text for dark mode, black for light mode
-    };
-  
-    const videoItemStyle = {
-      padding: 16,
-      backgroundColor: colorScheme === 'dark' ? '#444' : '#f0f0f0',  // Adjust background color for each item based on theme
-      borderBottomWidth: 1,
-      borderBottomColor: colorScheme === 'dark' ? '#555' : '#ccc',  // Adjust border color for each item based on theme
-      marginBottom: 10,
-    };
-  
-    useEffect(() => {
-      const fetchVideos = async () => {
-        const folderPath = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
-  
+    const ViewVideosScreen = ({ route }: ViewVideosProps) => {
+      const [videos, setVideos] = useState<string[]>([]);
+      const [fallbackVideo, setFallbackVideo] = useState<string | null>(null); // For fallback video player
+      const colorScheme = useColorScheme();
+    
+      const backgroundStyle = {
+        flex: 1,
+        padding: 16,
+        backgroundColor: colorScheme === 'dark' ? '#333' : '#fff',
+      };
+    
+      const textColor = {
+        color: colorScheme === 'dark' ? '#fff' : '#000',
+      };
+    
+      const videoItemStyle = {
+        padding: 16,
+        backgroundColor: colorScheme === 'dark' ? '#444' : '#f0f0f0',
+        borderBottomWidth: 1,
+        borderBottomColor: colorScheme === 'dark' ? '#555' : '#ccc',
+        marginBottom: 10,
+      };
+    
+      useEffect(() => {
+        const fetchVideos = async () => {
+          const folderPath = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
+    
+          try {
+            const files = await RNFS.readDir(folderPath); // Read the directory
+            const videoFiles = files
+              .filter((file) => file.isFile() && file.name.endsWith('.mp4')) // Filter .mp4 files
+              .map((file) => file.path);
+            setVideos(videoFiles);
+          } catch (error) {
+            console.error('Error reading directory:', error);
+            Alert.alert('Error', 'Failed to load videos.');
+          }
+        };
+    
+        fetchVideos();
+      }, []);
+    
+      const handleOpenVideo = async (videoPath: string) => {
         try {
-          const files = await RNFS.readDir(folderPath); // Read the directory
-          const videoFiles = files
-            .filter(file => file.isFile() && file.name.endsWith('.mp4')) // Filter .mp4 files
-            .map(file => file.path);
-          console.log('Video files:', videoFiles);  // Debug log
-          setVideos(videoFiles);
+          // Use FileViewer to open the video file
+          await FileViewer.open(videoPath, { showOpenWithDialog: true });
         } catch (error) {
-          console.error('Error reading directory:', error);
-          Alert.alert('Error', 'Failed to load videos.');
+          console.error('Error opening video:', error);
+          Alert.alert('Error', 'Failed to open the video.');
         }
       };
-  
-      fetchVideos();
-    }, []);
-  
-    const handleOpenVideo = async (videoPath: string) => {
-      try {
-        const supported = await Linking.canOpenURL(`file://${videoPath}`);
-        if (supported) {
-          await Linking.openURL(`file://${videoPath}`); // Opens the video in an external player
-        } else {
-          setFallbackVideo(videoPath);
-        }
-      } catch (error) {
-        console.error('Error opening video:', error);
-        Alert.alert('Error', 'Failed to open the video.');
-      }
-    };
-  
-    return (
-      <SafeAreaView style={backgroundStyle}>
+    
+      return (
+        <SafeAreaView style={backgroundStyle}>
         <Text style={[{ fontSize: 20, fontWeight: 'bold', marginBottom: 16 }, textColor]}>
           Saved Videos
         </Text>
@@ -504,18 +543,17 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
           <Text style={textColor}>No videos found.</Text>
         ) : (
           <FlatList
-          data={videos}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={videoItemStyle}
-              onPress={() => handleOpenVideo(item)}
-            >
-              <Text style={textColor}>
-                {item ? item.split('/').pop() || 'Unknown Video' : 'Invalid Video'}
-              </Text> {/* Display the file name or fallback text */}
-            </TouchableOpacity>
-          )}
+            data={videos}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={videoItemStyle}
+                onPress={() => handleOpenVideo(item)}
+              >
+                {/* Display the file name */}
+                <Text style={textColor}>{item.split('/').pop()}</Text>
+              </TouchableOpacity>
+            )}
           />
         )}
   
@@ -532,9 +570,10 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
           </View>
         )}
       </SafeAreaView>
-    );
-  };  
-
+      );
+  
+    };
+  
 
 
 const App = () => {
