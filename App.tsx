@@ -469,6 +469,7 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
           const videoFiles = files
             .filter(file => file.isFile() && file.name.endsWith('.mp4')) // Filter .mp4 files
             .map(file => file.path);
+          console.log('Video files:', videoFiles);  // Debug log
           setVideos(videoFiles);
         } catch (error) {
           console.error('Error reading directory:', error);
@@ -503,16 +504,18 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
           <Text style={textColor}>No videos found.</Text>
         ) : (
           <FlatList
-            data={videos}
-            keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={videoItemStyle}
-                onPress={() => handleOpenVideo(item)}
-              >
-                <Text style={textColor}>{item.split('/').pop()}</Text> {/* Display the file name */}
-              </TouchableOpacity>
-            )}
+          data={videos}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={videoItemStyle}
+              onPress={() => handleOpenVideo(item)}
+            >
+              <Text style={textColor}>
+                {item ? item.split('/').pop() || 'Unknown Video' : 'Invalid Video'}
+              </Text> {/* Display the file name or fallback text */}
+            </TouchableOpacity>
+          )}
           />
         )}
   
@@ -537,7 +540,12 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
 const App = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerTitleAlign: 'center',  // Center the title for all screens
+        }}
+      >
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Video" component={VideoScreen} />
         <Stack.Screen name="Download" component={DownloadScreen} />
