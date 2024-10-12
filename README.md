@@ -1,79 +1,61 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# ESP32 Camera App
 
-# Getting Started
+## Description
+This React Native application allows users to connect to an ESP32 camera, view the video stream, download video footage, and manage saved videos. It's designed to work on both iOS and Android platforms, providing a user-friendly interface for interacting with ESP32 camera modules.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+## Features
+- Search for ESP32 camera IP address on the local network
+- View live video stream from the ESP32 camera
+- Download video footage with customizable frame rate
+- View and manage saved videos
+- Dark mode support
 
-## Step 1: Start the Metro Server
+## Screens
+1. **Home Screen**: 
+   - Search for ESP32 camera IP
+   - Navigate to video stream, download, and saved videos screens
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+2. **Video Screen**: 
+   - Display live video stream from the ESP32 camera
 
-To start Metro, run the following command from the _root_ of your React Native project:
+3. **Download Screen**: 
+   - Get stream information (FPS, resolution, bitrate)
+   - Download video with custom frame rate
+   - View real-time FFmpeg logs during download
 
-```bash
-# using npm
-npm start
+4. **View Videos Screen**: 
+   - List all saved videos
+   - Play videos using device's default video player
+   - Fallback to in-app video player if needed
 
-# OR using Yarn
-yarn start
-```
+## Technologies Used
+- React Native
+- React Navigation
+- WebView for video streaming
+- FFmpeg for video processing and downloading
+- react-native-fs for file system operations
+- react-native-network-info for network operations
+- react-native-file-viewer for opening videos
 
-## Step 2: Start your Application
+## Installation
+(Add instructions for setting up the development environment, installing dependencies, and running the app)
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+## Usage
+1. Launch the app and use the "Search IP" button to find your ESP32 camera on the local network.
+2. Use "View Video" to see the live stream.
+3. Use "Download Video" to capture and save video footage.
+4. Access "Saved Videos" to view and manage your downloaded videos.
 
-### For Android
+## Dependencies
+- @react-navigation/native
+- @react-navigation/stack
+- react-native-webview
+- ffmpeg-kit-react-native
+- react-native-video
+- react-native-network-info
+- react-native-file-viewer
 
-```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### For iOS
-
-```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
-
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
-
-## Step 3: Modifying your App
-
-Now that you have successfully run the app, let's modify it.
-
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
-
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Notes
+- The app uses a custom method to search for the ESP32 camera on the local network.
+- Video download functionality includes automatic retries on connection loss.
+- The app supports both light and dark modes, adapting to the device's system theme.
