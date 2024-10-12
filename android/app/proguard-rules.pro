@@ -8,3 +8,11 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+# Keep classes related to react-native-network-info
+-keep class com.pusherman.networkinfo.** { *; }
+
+# Keep all native modules
+-keep class com.facebook.react.** { *; }
+
+# Keep React Native-related methods and classes
+-keep class com.facebook.** { *; }

@@ -29,6 +29,9 @@ import FileViewer from 'react-native-file-viewer';
 
 const { width } = Dimensions.get('window'); // Get the device width
 const screenWidth = Dimensions.get('window').width;  // Get the system theme (light or dark)
+const max_connect_tries = 10;
+let connect_count  = 0;
+let check_count = 0;
 
 type RootStackParamList = {
   Home: undefined;
@@ -83,7 +86,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         const testIp = `${subnet}.${i}`;
 
         try {
-          const response = await fetchWithTimeout(`http://${testIp}/`, { method: 'HEAD' }, 100);
+          const response = await fetchWithTimeout(`http://${testIp}/`, { method: 'HEAD' }, 200);
           if (response.ok) {
             setUrl(`http://${testIp}/`);
             Alert.alert('Success', `ESP32 Camera found at IP: ${testIp}`);
@@ -260,6 +263,14 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
   const ffmpegSessionRef = useRef<FFmpegSession | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);  // Reference to the ScrollView
   const colorScheme = useColorScheme();  // Get the system theme (light or dark)
+  const [isStopped, setIsStopped] = useState(false);  // Add this flag to track if the download was stopped
+
+
+    // UseEffect to log the changes in downloading state
+    useEffect(() => {
+      console.log('downloading state changed:', downloading);
+      // This will run every time the "downloading" state is updated
+    }, [downloading]);
 
   // Define styles for light and dark themes
   const backgroundStyle = {
@@ -334,54 +345,103 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
       Alert.alert('Invalid Input', 'Please enter a valid frame rate.');
       return;
     }
+  
+    const startTime = new Date();
 
+    setIsStopped(false);  // Reset the stop flag when starting the download
+    setDownloading(true); // Set downloading to true before starting the loop
+    console.log('Starting Downloading :', downloading); // Add a log here
+  
     try {
-      setDownloading(true);
-      setFfmpegLog('');
       const downloadFolder = `${RNFS.DownloadDirectoryPath}/DownloadedVideos`;
       if (!(await RNFS.exists(downloadFolder))) {
         await RNFS.mkdir(downloadFolder);
         Alert.alert('Success', 'Folder Created');
       }
-
+  
       const outputFilePath = await generateSequentialFileName(downloadFolder, 'output', 'mp4');
-      const ffmpegCommand = `-i ${new_url} -r ${frameRate} ${outputFilePath}`;
+  
+      try {
+        check_count++;
+        setFfmpegLog('');  // Clear previous logs
+        const ffmpegCommand = `-i ${new_url} -r ${frameRate} ${outputFilePath}`;
 
-      const session = await FFmpegKit.executeAsync(ffmpegCommand, async (session) => {
-        const returnCode = await session.getReturnCode();
-        if (returnCode.isValueSuccess()) {
-          console.log('Success', `Video downloaded successfully! File saved as ${outputFilePath}`);
-        } else {
-          const failStackTrace = await session.getFailStackTrace();
-          console.log('FFmpeg failed with return code:', returnCode);
-          if (failStackTrace) {
-            console.log('FFmpeg failure stacktrace:', failStackTrace);
+        const session = await FFmpegKit.executeAsync(ffmpegCommand, async (session) => {
+          // const returnCode = await session.getReturnCode();
+          // if (returnCode.isValueSuccess()) {
+          //   console.log('return code', `${returnCode}`);
+          //   // setDownloading(false);    // Set downloading to false once download completes
+          // } else {
+          //   const failStackTrace = await session.getFailStackTrace();
+          //   console.log('FFmpeg failed with return code:', returnCode);
+          //   if (failStackTrace) {
+          //     console.log('FFmpeg failure stacktrace:', failStackTrace);
+          //   }
+          //   console.log('Error', 'Failed to download video.');
+          // }
+        });
+
+        ffmpegSessionRef.current = session;
+
+        FFmpegKitConfig.enableLogCallback(log => {
+          // Time related
+          const endTime = new Date();
+          const duration = endTime.getTime() - startTime.getTime(); // duration in milliseconds
+          const durationInSeconds = duration / 1000;
+          const minutes = Math.floor(durationInSeconds / 60);
+          const seconds = durationInSeconds % 60;
+          const logMessage = log.getMessage();
+          console.log('log:', logMessage);
+          // Check for specific patterns that indicate connection loss or errors
+          if (logMessage.includes('Network is unreachable') || logMessage.includes('Stream ends prematurely') || logMessage.includes('No route to host')) {
+            setDownloading(false);
+            console.log('Connection lost detected. lost count:check count:max_connect_tries:', connect_count,check_count,max_connect_tries);
+            // console.log('Connection lost detected. check count:', check_count);
+            if ((max_connect_tries > connect_count) && (connect_count===(check_count-1))){
+              setFfmpegLog( prevLog => `${prevLog}\nDuration: ${minutes} minutes and ${seconds.toFixed(2)} seconds`);
+              console.log('triggering reinitiate');
+              setFfmpegLog(prevLog => `${prevLog}\nConnection lost: Retrying...`);
+              // You can also handle this by stopping the download or retrying
+              setDownloading(false);  // Stop the download process
+              if (ffmpegSessionRef.current) {
+                ffmpegSessionRef.current.cancel();
+                console.log('ending the session'); // Log when download is stopped
+              }
+              connect_count++;
+              setTimeout(() => handleDownload(), 5000);
+            } 
+          } else {
+              setFfmpegLog( `Duration: ${minutes} minutes and ${seconds.toFixed(2)} seconds`);
           }
-          console.log('Error', 'Failed to download video.');
+        });
+
+      } catch (error) {
+        if (ffmpegSessionRef.current) {
+          ffmpegSessionRef.current.cancel();
+          console.log('ending the session'); // Log when download is stopped
         }
-        setDownloading(false);
-      });
-
-      ffmpegSessionRef.current = session;
-
-      FFmpegKitConfig.enableLogCallback(log => {
-        const logMessage = log.getMessage();
-        setFfmpegLog(prevLog => `${prevLog}\n${logMessage}`);
-      });
+        console.error('Error during download:', error);
+        setFfmpegLog(prevLog => `${prevLog}\nError: ${error}. Retrying...`);
+        // await new Promise(resolve => setTimeout(resolve, 3000));  // Wait before retrying (3 seconds)
+      }
 
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'An error occurred while downloading the video.');
-      setDownloading(false);
+    } finally {
+      // setDownloading(false);
+      console.log('end of program'); // Log when download is stopped
     }
   };
 
   const handleStop = () => {
+    connect_count = 0;
+    check_count = 0;
     if (ffmpegSessionRef.current) {
       ffmpegSessionRef.current.cancel();
-      Alert.alert('Stopped', 'FFmpeg operation has been stopped.');
-      setDownloading(false);
+      // Alert.alert('Stopped', 'FFmpeg operation has been stopped.');
     }
+    setDownloading(false);
   };
 
   return (
@@ -406,17 +466,22 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
         />
         <Text style={[{ marginLeft: 8, fontWeight: 'bold', width: width / 2 }, textColor]}>URL: {url}stream</Text>
       </View>
+  
       <View style={{ marginTop: 20 }}>
-        <Button title="Get Frame Rate" onPress={handleGetInfo} />
+        <Button title="Get Info" onPress={handleGetInfo} />
       </View>
+  
       <View style={{ marginTop: 20 }}>
         <Button title="Download Stream" onPress={handleDownload} disabled={downloading} />
       </View>
-      {downloading && (
-        <View style={{ marginTop: 20 }}>
+      {downloading ? (
+      <View style={{ marginTop: 20 }}>
           <Button title="Stop Download" onPress={handleStop} />
         </View>
+      ) : (
+        <Text>Not downloading</Text>  // This will help verify if the downloading state is changing
       )}
+  
       <ScrollView
         ref={scrollViewRef}  // Attach the reference here
         style={{ marginTop: 20, maxHeight: 200, borderWidth: 1, borderColor: 'gray', padding: 10 }}
@@ -424,6 +489,7 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
         <Text style={textColor}>FFmpeg Log:</Text>
         <Text style={textColor}>{ffmpegLog}</Text>
       </ScrollView>
+  
       <View style={{ marginTop: 20 }}>
         <Text style={textColor}>Real FPS: {streamInfo.realFPS}</Text>
         <Text style={textColor}>Estimated FPS: {streamInfo.averageFps}</Text>
@@ -431,7 +497,9 @@ const DownloadScreen = ({ route }: DownloadScreenProps) => {
       </View>
     </SafeAreaView>
   );
+  
 };
+
 
 
   // ------------------------------------------------------------------- Video view

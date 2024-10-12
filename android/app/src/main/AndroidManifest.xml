@@ -17,8 +17,8 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
-      android:supportsRtl="true">
-
+      android:supportsRtl="true"
+      android:usesCleartextTraffic="true">
       <!-- FileProvider configuration -->
       <provider
         android:name="androidx.core.content.FileProvider"
